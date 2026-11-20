@@ -1,0 +1,45 @@
+name: Check anti-gaspi
+
+on:
+  schedule:
+    - cron: "*/15 6-19 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: antigaspi
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer les dépendances
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Restaurer l'état précédent
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: state-${{ github.run_id }}
+          restore-keys: state-
+
+      - name: Vérifier la catégorie anti-gaspi
+        run: python check.py
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Sauvegarder l'état
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: state
+          key: state-${{ github.run_id }}
